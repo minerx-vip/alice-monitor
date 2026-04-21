@@ -19,7 +19,7 @@ HTML 文件，**完全运行在浏览器里** —— 没有服务器、没有埋
 
 - **纪元矩阵视图** —— 行是钱包，列是纪元，格子显示该纪元的奖励（颜色深浅表示金额）或 shard 数。
 - **窗口默认 24 小时**，可通过 URL 参数调整：`?hours=48`（最大 168）。
-- **按奖励排序 Top-N** —— 默认显示 Top 50。`?top=200` 或 `?top=all` 可调。
+- **按奖励排序 Top-N** —— 默认显示 Top 200。`?top=500` 或 `?top=all` 可调。
 - **我的钱包（追踪功能）** —— 在 "👛 My Wallets" 面板添加任意数量的钱包地址并附上备注。被追踪的钱包会：
   - 置顶，黄色高亮，带 ★ 标
   - 在页面顶部 Hero 卡片里汇总：窗口期总奖励、命中纪元数、占奖池百分比
@@ -93,7 +93,7 @@ server, no tracking, no dependencies.
 - **Transposed epoch grid** — rows are wallets, columns are epochs, cells
   show reward (colored intensity) or shard count.
 - **Last 24 hours** window by default. Adjust with `?hours=48` (max 168).
-- **Top-N by reward** — default top 50. Use `?top=200` or `?top=all` to
+- **Top-N by reward** — default top 200. Use `?top=500` or `?top=all` to
   show more.
 - **Watch your own wallets** — add any addresses with optional notes in the
   "My Wallets" panel. They're pinned to the top, highlighted, and summed in

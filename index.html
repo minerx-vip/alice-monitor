@@ -103,7 +103,7 @@
 const params = new URLSearchParams(location.search);
 const WINDOW_HOURS = Math.max(1, Math.min(parseInt(params.get("hours") || "24"), 168));
 const topParam = params.get("top");
-const TOP_N = topParam === "all" ? Infinity : Math.max(1, Math.min(parseInt(topParam || "50"), 5000));
+const TOP_N = topParam === "all" ? Infinity : Math.max(1, Math.min(parseInt(topParam || "200"), 5000));
 const DATA_URL = "data/epochs.json";
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 const STORAGE_KEY = "alice_monitor_watchlist";
