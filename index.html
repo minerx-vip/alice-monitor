@@ -105,7 +105,8 @@ const WINDOW_HOURS = Math.max(1, Math.min(parseInt(params.get("hours") || "24"),
 const topParam = params.get("top");
 const TOP_N = topParam === "all" ? Infinity : Math.max(1, Math.min(parseInt(topParam || "200"), 5000));
 const DATA_URL = "data/epochs.json";
-const AUTO_REFRESH_MS = 5 * 60 * 1000;
+const LIVE_API_URL = "https://aliceprotocol.org/api/indexer/epochs?limit=50";
+const AUTO_REFRESH_MS = 60 * 1000;
 const STORAGE_KEY = "alice_monitor_watchlist";
 const LANG_KEY = "alice_monitor_lang";
 
@@ -157,8 +158,10 @@ const I18N = {
       `Showing top <b>${shown}</b> of <b>${total}</b> non-watched wallets (watched always shown). `,
     note_show_all: "Show all",
     note_or_try: "or try",
-    footer: (updated) => `Data updated: ${updated} · Page auto-refresh every 5 min · `,
+    footer: (updated) => `Data updated: ${updated} · Page auto-refresh every 1 min · `,
     footer_raw: "raw JSON",
+    footer_live: "live",
+    footer_cached: "cached only",
     alert_import: (n) => `Import ${n} wallet(s) from the URL into your watchlist?`,
     alert_clear_confirm: "Remove all watched wallets from this browser?",
     alert_bad_json: "Invalid JSON shape: expected { address: label }.",
@@ -211,8 +214,10 @@ const I18N = {
       `显示非关注钱包前 <b>${shown}</b> 个，共 <b>${total}</b> 个（关注的钱包始终显示）。`,
     note_show_all: "显示全部",
     note_or_try: "或尝试",
-    footer: (updated) => `数据更新时间：${updated} · 页面每 5 分钟自动刷新 · `,
+    footer: (updated) => `数据更新时间：${updated} · 页面每 1 分钟自动刷新 · `,
     footer_raw: "原始 JSON",
+    footer_live: "实时",
+    footer_cached: "仅缓存",
     alert_import: (n) => `从 URL 导入 ${n} 个钱包到本地列表？`,
     alert_clear_confirm: "从此浏览器移除所有关注的钱包？",
     alert_bad_json: "JSON 格式错误：需要 { 地址: 备注 } 的对象。",
@@ -654,24 +659,55 @@ function render(data) {
   const updatedStr = updatedAt
     ? new Date(updatedAt * 1000).toISOString().replace("T", " ").slice(0, 19) + " UTC"
     : "—";
+  const liveBadge = data._live
+    ? ` · <span class="text-green-400">● ${esc(t("footer_live"))}</span>`
+    : ` · <span class="text-amber-400">● ${esc(t("footer_cached"))}</span>`;
   document.getElementById("footer").innerHTML =
     esc(t("footer", updatedStr)) +
-    `<a class="text-cyan-400 hover:underline" href="${DATA_URL}">${esc(t("footer_raw"))}</a>`;
+    `<a class="text-cyan-400 hover:underline" href="${DATA_URL}">${esc(t("footer_raw"))}</a>` +
+    liveBadge;
 }
 
 // ---------------------------------------------------------------------------
 // Load & poll
 // ---------------------------------------------------------------------------
+// Fetch cached JSON (retained history, ~200 epochs) and the live upstream API
+// (latest ~50 epochs) in parallel, then merge. Live data wins per-epoch, so the
+// page always shows the newest epoch even if the GitHub Actions cron is late.
+async function fetchCached() {
+  const r = await fetch(DATA_URL + "?t=" + Date.now(), { cache: "no-cache" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+async function fetchLive() {
+  const r = await fetch(LIVE_API_URL, { cache: "no-cache" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const list = await r.json();
+  if (!Array.isArray(list)) throw new Error("unexpected shape");
+  return list;
+}
+function mergeEpochs(cached, live) {
+  const byId = new Map();
+  for (const ep of cached || []) byId.set(Number(ep.epoch), ep);
+  for (const ep of live || []) byId.set(Number(ep.epoch), ep);
+  return [...byId.values()].sort((a, b) => (b.epoch || 0) - (a.epoch || 0));
+}
+
 async function load() {
-  try {
-    const r = await fetch(DATA_URL + "?t=" + Date.now(), { cache: "no-cache" });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    const data = await r.json();
-    render(data);
-  } catch (e) {
+  const [cachedRes, liveRes] = await Promise.allSettled([fetchCached(), fetchLive()]);
+  const cached = cachedRes.status === "fulfilled" ? cachedRes.value : null;
+  const live = liveRes.status === "fulfilled" ? liveRes.value : null;
+
+  if (!cached && !live) {
+    const msg = (cachedRes.reason && cachedRes.reason.message) || "no data";
     document.getElementById("tbody").innerHTML =
-      `<tr><td colspan="3" class="p-6 text-center text-red-400">${esc(t("load_failed", e.message))}</td></tr>`;
+      `<tr><td colspan="3" class="p-6 text-center text-red-400">${esc(t("load_failed", msg))}</td></tr>`;
+    return;
   }
+
+  const epochs = mergeEpochs(cached ? cached.epochs : [], live);
+  const updated = live ? Math.floor(Date.now() / 1000) : (cached ? cached.updated : 0);
+  render({ updated, epochs, _live: !!live });
 }
 
 applyStaticI18n();
