@@ -1,0 +1,45 @@
+name: Update epoch data
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub cron is best-effort; expect some drift.
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - scripts/fetch_epochs.py
+      - .github/workflows/update.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch latest epochs
+        run: python scripts/fetch_epochs.py
+
+      - name: Commit if changed
+        run: |
+          if [ -n "$(git status --porcelain data/epochs.json)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/epochs.json
+            git commit -m "chore(data): update epochs $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          else
+            echo "No change."
+          fi

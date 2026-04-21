@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.cache/
+.DS_Store
+wallet_addresses.txt
+.env
+.venv/
+node_modules/
