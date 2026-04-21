@@ -20,26 +20,32 @@
 
 <div class="max-w-[95vw] mx-auto">
   <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
-    <h1 class="text-2xl font-bold text-white">Alice Protocol Mining Monitor</h1>
-    <div class="text-xs text-gray-500" id="subtitle">Loading…</div>
+    <h1 class="text-2xl font-bold text-white" data-i18n="app_title">Alice Protocol Mining Monitor</h1>
+    <div class="flex items-center gap-3">
+      <div class="text-xs text-gray-500" id="subtitle">Loading…</div>
+      <div class="text-xs flex items-center rounded border border-gray-700 overflow-hidden">
+        <button class="lang-btn px-2 py-1 hover:bg-gray-700" data-lang="zh">中</button>
+        <button class="lang-btn px-2 py-1 hover:bg-gray-700 border-l border-gray-700" data-lang="en">EN</button>
+      </div>
+    </div>
   </div>
 
   <!-- My Wallets hero card -->
   <div id="hero" class="hidden bg-gradient-to-r from-yellow-900/60 to-amber-900/40 ring-1 ring-yellow-500/40 rounded-lg p-5 mb-4">
     <div class="flex items-center justify-between flex-wrap gap-4">
       <div>
-        <div class="text-sm text-yellow-200">★ My Wallets · reward in last <span id="hero-hours">24</span>h</div>
+        <div class="text-sm text-yellow-200"><span data-i18n="hero_title_prefix">★ My Wallets · reward in last </span><span id="hero-hours">24</span><span data-i18n="hero_title_suffix">h</span></div>
         <div class="text-4xl font-bold text-yellow-300 font-mono"><span id="hero-reward">0</span> <span class="text-xl text-yellow-400">ALICE</span></div>
       </div>
       <div class="text-right">
-        <div class="text-xs text-gray-400">Hit epochs</div>
+        <div class="text-xs text-gray-400" data-i18n="hero_hit">Hit epochs</div>
         <div class="text-2xl font-bold text-yellow-200"><span id="hero-hit">0</span><span class="text-gray-500">/<span id="hero-epochs">0</span></span></div>
-        <div class="text-xs text-gray-400 mt-1">Rewarded wallets ★ <span id="hero-wallets">0</span>/<span id="hero-total">0</span></div>
+        <div class="text-xs text-gray-400 mt-1"><span data-i18n="hero_rewarded">Rewarded wallets</span> ★ <span id="hero-wallets">0</span>/<span id="hero-total">0</span></div>
       </div>
       <div class="text-right">
-        <div class="text-xs text-gray-400">Share of pool</div>
+        <div class="text-xs text-gray-400" data-i18n="hero_share">Share of pool</div>
         <div class="text-2xl font-bold text-green-400"><span id="hero-share">0</span>%</div>
-        <div class="text-xs text-gray-400 mt-1">pool: <span id="hero-pool">0</span></div>
+        <div class="text-xs text-gray-400 mt-1"><span data-i18n="hero_pool">pool:</span> <span id="hero-pool">0</span></div>
       </div>
     </div>
   </div>
@@ -47,27 +53,27 @@
   <!-- My Wallets management -->
   <details class="bg-gray-800 rounded-lg p-4 mb-4" id="watch-panel">
     <summary class="flex items-center justify-between">
-      <span class="text-sm font-bold text-gray-200">👛 My Wallets <span class="text-xs text-gray-500 font-normal">(<span id="watch-count">0</span> · saved in your browser)</span></span>
-      <span class="text-xs text-cyan-400">toggle ▾</span>
+      <span class="text-sm font-bold text-gray-200"><span data-i18n="watch_title">👛 My Wallets</span> <span class="text-xs text-gray-500 font-normal">(<span id="watch-count">0</span> · <span data-i18n="watch_saved">saved in your browser</span>)</span></span>
+      <span class="text-xs text-cyan-400" data-i18n="watch_toggle">toggle ▾</span>
     </summary>
     <div class="mt-4 space-y-3">
       <div class="flex gap-2 flex-wrap items-center">
-        <input id="watch-addr" type="text" placeholder="Wallet address (a2...)"
+        <input id="watch-addr" type="text" data-i18n-placeholder="watch_addr_ph" placeholder="Wallet address (a2...)"
           class="flex-1 min-w-[280px] bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm font-mono" />
-        <input id="watch-label" type="text" placeholder="Label / 备注 (optional)"
+        <input id="watch-label" type="text" data-i18n-placeholder="watch_label_ph" placeholder="Label / 备注 (optional)"
           class="flex-1 min-w-[180px] bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm" />
-        <button id="watch-add" class="bg-yellow-600 hover:bg-yellow-500 text-black font-semibold rounded px-4 py-2 text-sm">Add</button>
+        <button id="watch-add" data-i18n="watch_add" class="bg-yellow-600 hover:bg-yellow-500 text-black font-semibold rounded px-4 py-2 text-sm">Add</button>
       </div>
       <div id="watch-list" class="space-y-1"></div>
       <div class="flex gap-2 flex-wrap pt-2 border-t border-gray-700 text-xs">
-        <button id="watch-export" class="text-cyan-400 hover:underline">Export JSON</button>
+        <button id="watch-export" data-i18n="watch_export" class="text-cyan-400 hover:underline">Export JSON</button>
         <span class="text-gray-600">·</span>
-        <button id="watch-import" class="text-cyan-400 hover:underline">Import JSON</button>
+        <button id="watch-import" data-i18n="watch_import" class="text-cyan-400 hover:underline">Import JSON</button>
         <span class="text-gray-600">·</span>
-        <button id="watch-share" class="text-cyan-400 hover:underline">Copy share link</button>
+        <button id="watch-share" data-i18n="watch_share" class="text-cyan-400 hover:underline">Copy share link</button>
         <span class="text-gray-600">·</span>
-        <button id="watch-clear" class="text-red-400 hover:underline">Clear all</button>
-        <span class="ml-auto text-gray-500">Stored in localStorage · private to this browser</span>
+        <button id="watch-clear" data-i18n="watch_clear" class="text-red-400 hover:underline">Clear all</button>
+        <span class="ml-auto text-gray-500" data-i18n="watch_footnote">Stored in localStorage · private to this browser</span>
       </div>
     </div>
   </details>
@@ -101,6 +107,160 @@ const TOP_N = topParam === "all" ? Infinity : Math.max(1, Math.min(parseInt(topP
 const DATA_URL = "data/epochs.json";
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 const STORAGE_KEY = "alice_monitor_watchlist";
+const LANG_KEY = "alice_monitor_lang";
+
+// ---------------------------------------------------------------------------
+// i18n
+// ---------------------------------------------------------------------------
+const I18N = {
+  en: {
+    app_title: "Alice Protocol Mining Monitor",
+    loading: "Loading…",
+    subtitle: (h) => `Public read-only view · last ${h}h · data from `,
+    data_source: "aliceprotocol.org",
+    hero_title_prefix: "★ My Wallets · reward in last ",
+    hero_title_suffix: "h",
+    hero_hit: "Hit epochs",
+    hero_rewarded: "Rewarded wallets",
+    hero_share: "Share of pool",
+    hero_pool: "pool:",
+    watch_title: "👛 My Wallets",
+    watch_saved: "saved in your browser",
+    watch_toggle: "toggle ▾",
+    watch_addr_ph: "Wallet address (a2...)",
+    watch_label_ph: "Label (optional)",
+    watch_add: "Add",
+    watch_export: "Export JSON",
+    watch_import: "Import JSON",
+    watch_share: "Copy share link",
+    watch_clear: "Clear all",
+    watch_footnote: "Stored in localStorage · private to this browser",
+    watch_empty: "No wallets yet. Add one above — it stays on this browser only.",
+    watch_remove: "remove",
+    watch_no_label: "(no label)",
+    card_epochs: "Epochs in window",
+    card_epochs_sub: (h) => `last ${h}h`,
+    card_pool: "Pool Total",
+    card_pool_sub: "ALICE distributed",
+    card_rewarded: "Rewarded Wallets",
+    card_rewarded_sub: "received > 0 in window",
+    card_active: "Active Miners",
+    card_active_sub: "submitted shards",
+    col_wallet: "Wallet",
+    col_reward: "Reward",
+    col_reward_sub: (ep, h) => `${ep}ep · ${h}h`,
+    col_shards: "Shards",
+    foot_rewarded: "Rewarded / epoch",
+    no_data: "No data.",
+    load_failed: (m) => `Failed to load data: ${m}`,
+    note_truncated: (shown, total) =>
+      `Showing top <b>${shown}</b> of <b>${total}</b> non-watched wallets (watched always shown). `,
+    note_show_all: "Show all",
+    note_or_try: "or try",
+    footer: (updated) => `Data updated: ${updated} · Page auto-refresh every 5 min · `,
+    footer_raw: "raw JSON",
+    alert_import: (n) => `Import ${n} wallet(s) from the URL into your watchlist?`,
+    alert_clear_confirm: "Remove all watched wallets from this browser?",
+    alert_bad_json: "Invalid JSON shape: expected { address: label }.",
+    alert_parse_fail: (m) => `Failed to parse JSON: ${m}`,
+    alert_empty_watch: "Watchlist is empty.",
+    alert_copied: "Share link copied to clipboard.",
+    prompt_copy: "Copy this URL:",
+  },
+  zh: {
+    app_title: "Alice Protocol 挖矿监控",
+    loading: "加载中…",
+    subtitle: (h) => `公开只读视图 · 最近 ${h} 小时 · 数据来自 `,
+    data_source: "aliceprotocol.org",
+    hero_title_prefix: "★ 我的钱包 · 最近 ",
+    hero_title_suffix: " 小时奖励",
+    hero_hit: "命中纪元",
+    hero_rewarded: "命中钱包",
+    hero_share: "占奖池",
+    hero_pool: "奖池合计：",
+    watch_title: "👛 我的钱包",
+    watch_saved: "仅保存在你的浏览器",
+    watch_toggle: "展开 ▾",
+    watch_addr_ph: "钱包地址（a2...）",
+    watch_label_ph: "备注（可选）",
+    watch_add: "添加",
+    watch_export: "导出 JSON",
+    watch_import: "导入 JSON",
+    watch_share: "复制分享链接",
+    watch_clear: "全部清空",
+    watch_footnote: "保存在 localStorage · 仅限此浏览器可见",
+    watch_empty: "还没有钱包。在上方添加一个——只会保存在这台浏览器。",
+    watch_remove: "移除",
+    watch_no_label: "（未命名）",
+    card_epochs: "窗口纪元数",
+    card_epochs_sub: (h) => `最近 ${h} 小时`,
+    card_pool: "奖池总量",
+    card_pool_sub: "已分发 ALICE",
+    card_rewarded: "已获奖钱包",
+    card_rewarded_sub: "窗口内获得奖励",
+    card_active: "活跃矿工",
+    card_active_sub: "提交过 shard",
+    col_wallet: "钱包",
+    col_reward: "奖励",
+    col_reward_sub: (ep, h) => `${ep} 纪元 · ${h}h`,
+    col_shards: "Shards",
+    foot_rewarded: "每纪元获奖数",
+    no_data: "暂无数据。",
+    load_failed: (m) => `加载数据失败：${m}`,
+    note_truncated: (shown, total) =>
+      `显示非关注钱包前 <b>${shown}</b> 个，共 <b>${total}</b> 个（关注的钱包始终显示）。`,
+    note_show_all: "显示全部",
+    note_or_try: "或尝试",
+    footer: (updated) => `数据更新时间：${updated} · 页面每 5 分钟自动刷新 · `,
+    footer_raw: "原始 JSON",
+    alert_import: (n) => `从 URL 导入 ${n} 个钱包到本地列表？`,
+    alert_clear_confirm: "从此浏览器移除所有关注的钱包？",
+    alert_bad_json: "JSON 格式错误：需要 { 地址: 备注 } 的对象。",
+    alert_parse_fail: (m) => `解析 JSON 失败：${m}`,
+    alert_empty_watch: "关注列表为空。",
+    alert_copied: "分享链接已复制到剪贴板。",
+    prompt_copy: "复制此链接：",
+  },
+};
+
+function detectLang() {
+  const saved = localStorage.getItem(LANG_KEY);
+  if (saved && I18N[saved]) return saved;
+  const nav = (navigator.language || "en").toLowerCase();
+  return nav.startsWith("zh") ? "zh" : "en";
+}
+let LANG = detectLang();
+const t = (key, ...args) => {
+  const v = I18N[LANG][key];
+  return typeof v === "function" ? v(...args) : v;
+};
+
+function applyStaticI18n() {
+  document.documentElement.lang = LANG === "zh" ? "zh-CN" : "en";
+  document.title = t("app_title");
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll(".lang-btn").forEach((btn) => {
+    btn.classList.toggle("bg-yellow-600", btn.dataset.lang === LANG);
+    btn.classList.toggle("text-black", btn.dataset.lang === LANG);
+    btn.classList.toggle("font-semibold", btn.dataset.lang === LANG);
+  });
+}
+function setLang(l) {
+  if (!I18N[l] || l === LANG) return;
+  LANG = l;
+  localStorage.setItem(LANG_KEY, l);
+  applyStaticI18n();
+  renderWatchUI();
+  if (LAST_DATA) render(LAST_DATA);
+}
+document.querySelectorAll(".lang-btn").forEach((btn) => {
+  btn.addEventListener("click", () => setLang(btn.dataset.lang));
+});
 
 // ---------------------------------------------------------------------------
 // Watchlist (localStorage)
@@ -142,7 +302,7 @@ function importFromUrlParam() {
   }
   const n = Object.keys(incoming).length;
   if (!n) return;
-  if (confirm(`Import ${n} wallet(s) from the URL into your watchlist?`)) {
+  if (confirm(t("alert_import", n))) {
     WATCH = { ...WATCH, ...incoming };
     saveWatch(WATCH);
   }
@@ -180,16 +340,16 @@ function renderWatchUI() {
   const entries = Object.entries(WATCH);
   document.getElementById("watch-count").textContent = entries.length;
   if (!entries.length) {
-    list.innerHTML = '<div class="text-xs text-gray-500 italic">No wallets yet. Add one above — it stays on this browser only.</div>';
+    list.innerHTML = `<div class="text-xs text-gray-500 italic">${esc(t("watch_empty"))}</div>`;
     return;
   }
   list.innerHTML = entries.map(([addr, label]) => `
     <div class="flex items-center gap-2 bg-gray-900/60 rounded px-2 py-1 text-sm">
       <span class="text-yellow-300">★</span>
       <input data-addr="${esc(addr)}" class="watch-label-input bg-transparent border-b border-transparent hover:border-gray-600 focus:border-yellow-400 outline-none text-yellow-200 font-semibold px-1 py-0.5 min-w-[120px]"
-        value="${esc(label)}" placeholder="(no label)" />
+        value="${esc(label)}" placeholder="${esc(t("watch_no_label"))}" />
       <span class="font-mono text-gray-400 text-xs" title="${esc(addr)}">${esc(shortAddr(addr))}</span>
-      <button data-addr="${esc(addr)}" class="watch-remove ml-auto text-red-400 hover:text-red-300 text-xs">remove</button>
+      <button data-addr="${esc(addr)}" class="watch-remove ml-auto text-red-400 hover:text-red-300 text-xs">${esc(t("watch_remove"))}</button>
     </div>
   `).join("");
   list.querySelectorAll(".watch-remove").forEach((btn) => {
@@ -225,7 +385,7 @@ document.getElementById("watch-label").addEventListener("keydown", (e) => {
   if (e.key === "Enter") document.getElementById("watch-add").click();
 });
 document.getElementById("watch-clear").addEventListener("click", () => {
-  if (Object.keys(WATCH).length && confirm("Remove all watched wallets from this browser?")) {
+  if (Object.keys(WATCH).length && confirm(t("alert_clear_confirm"))) {
     clearWatch();
     renderWatchUI();
     if (LAST_DATA) render(LAST_DATA);
@@ -254,10 +414,10 @@ document.getElementById("watch-import").addEventListener("click", () => {
           renderWatchUI();
           if (LAST_DATA) render(LAST_DATA);
         } else {
-          alert("Invalid JSON shape: expected { address: label }.");
+          alert(t("alert_bad_json"));
         }
       } catch (e) {
-        alert("Failed to parse JSON: " + e.message);
+        alert(t("alert_parse_fail", e.message));
       }
     };
     reader.readAsText(f);
@@ -266,13 +426,13 @@ document.getElementById("watch-import").addEventListener("click", () => {
 });
 document.getElementById("watch-share").addEventListener("click", async () => {
   const parts = Object.entries(WATCH).map(([a, l]) => a + (l ? "|" + encodeURIComponent(l) : ""));
-  if (!parts.length) { alert("Watchlist is empty."); return; }
+  if (!parts.length) { alert(t("alert_empty_watch")); return; }
   const url = location.origin + location.pathname + "?watch=" + parts.join(",");
   try {
     await navigator.clipboard.writeText(url);
-    alert("Share link copied to clipboard.");
+    alert(t("alert_copied"));
   } catch (e) {
-    prompt("Copy this URL:", url);
+    prompt(t("prompt_copy"), url);
   }
 });
 
@@ -361,24 +521,24 @@ function render(data) {
   // Overview cards
   document.getElementById("cards").innerHTML = `
     <div class="bg-gray-800 rounded-lg p-4">
-      <div class="text-xs text-gray-400">Epochs in window</div>
+      <div class="text-xs text-gray-400">${esc(t("card_epochs"))}</div>
       <div class="text-2xl font-bold text-white">${epochs.length}</div>
-      <div class="text-xs text-gray-500">last ${WINDOW_HOURS}h</div>
+      <div class="text-xs text-gray-500">${esc(t("card_epochs_sub", WINDOW_HOURS))}</div>
     </div>
     <div class="bg-gray-800 rounded-lg p-4">
-      <div class="text-xs text-gray-400">Pool Total</div>
+      <div class="text-xs text-gray-400">${esc(t("card_pool"))}</div>
       <div class="text-2xl font-bold text-blue-400">${fmtInt(poolTotal)}</div>
-      <div class="text-xs text-gray-500">ALICE distributed</div>
+      <div class="text-xs text-gray-500">${esc(t("card_pool_sub"))}</div>
     </div>
     <div class="bg-gray-800 rounded-lg p-4">
-      <div class="text-xs text-gray-400">Rewarded Wallets</div>
+      <div class="text-xs text-gray-400">${esc(t("card_rewarded"))}</div>
       <div class="text-2xl font-bold text-green-400">${rewardedWallets}</div>
-      <div class="text-xs text-gray-500">received &gt; 0 in window</div>
+      <div class="text-xs text-gray-500">${esc(t("card_rewarded_sub"))}</div>
     </div>
     <div class="bg-gray-800 rounded-lg p-4">
-      <div class="text-xs text-gray-400">Active Miners</div>
+      <div class="text-xs text-gray-400">${esc(t("card_active"))}</div>
       <div class="text-2xl font-bold text-purple-400">${totalWallets}</div>
-      <div class="text-xs text-gray-500">submitted shards</div>
+      <div class="text-xs text-gray-500">${esc(t("card_active_sub"))}</div>
     </div>
   `;
 
@@ -401,11 +561,11 @@ function render(data) {
 
   document.getElementById("thead").innerHTML = `
     <tr class="bg-gray-900 border-b border-gray-700">
-      <th class="px-3 py-2 text-left text-gray-400 sticky left-0 bg-gray-900 z-20">Wallet</th>
+      <th class="px-3 py-2 text-left text-gray-400 sticky left-0 bg-gray-900 z-20">${esc(t("col_wallet"))}</th>
       <th class="px-2 py-2 text-center text-gray-400 text-xs">
-        Reward<br><span class='text-[10px] text-gray-500'>${epochs.length}ep · ${WINDOW_HOURS}h</span>
+        ${esc(t("col_reward"))}<br><span class='text-[10px] text-gray-500'>${esc(t("col_reward_sub", epochs.length, WINDOW_HOURS))}</span>
       </th>
-      <th class="px-2 py-2 text-center text-gray-400 text-xs">Shards</th>
+      <th class="px-2 py-2 text-center text-gray-400 text-xs">${esc(t("col_shards"))}</th>
       ${headerCells}
     </tr>
   `;
@@ -455,7 +615,7 @@ function render(data) {
       ${cells}
     </tr>`;
   }).join("");
-  document.getElementById("tbody").innerHTML = rows || `<tr><td colspan="3" class="p-6 text-center text-gray-500">No data.</td></tr>`;
+  document.getElementById("tbody").innerHTML = rows || `<tr><td colspan="3" class="p-6 text-center text-gray-500">${esc(t("no_data"))}</td></tr>`;
 
   // Footer: rewarded per epoch
   const footerCells = epochs.map((ep) => {
@@ -467,7 +627,7 @@ function render(data) {
   }).join("");
   document.getElementById("tfoot").innerHTML = `
     <tr class="bg-gray-900 border-t-2 border-gray-600 font-bold">
-      <td class="px-3 py-2 sticky left-0 bg-gray-900 z-10 whitespace-nowrap text-cyan-300 text-sm">Rewarded / epoch</td>
+      <td class="px-3 py-2 sticky left-0 bg-gray-900 z-10 whitespace-nowrap text-cyan-300 text-sm">${esc(t("foot_rewarded"))}</td>
       <td class="px-2 py-2 text-center text-gray-500">—</td>
       <td class="px-2 py-2 text-center text-gray-500">—</td>
       ${footerCells}
@@ -480,23 +640,23 @@ function render(data) {
     const full = new URL(location.href);
     full.searchParams.set("top", "all");
     document.getElementById("note").innerHTML =
-      `Showing top <b>${shownNonWatched}</b> of <b>${nonWatchedRanked.length}</b> non-watched wallets (watched always shown). ` +
-      `<a class="text-cyan-300 underline" href="${full.search}">Show all</a> · ` +
-      `or try <code class="text-cyan-300">?top=200</code>.`;
+      t("note_truncated", shownNonWatched, nonWatchedRanked.length) +
+      `<a class="text-cyan-300 underline" href="${full.search}">${esc(t("note_show_all"))}</a> · ` +
+      `${esc(t("note_or_try"))} <code class="text-cyan-300">?top=200</code>.`;
   } else {
     document.getElementById("note").textContent = "";
   }
 
   document.getElementById("subtitle").innerHTML =
-    `Public read-only view · last ${WINDOW_HOURS}h · data from ` +
-    `<a class="text-cyan-400 hover:underline" href="https://aliceprotocol.org" target="_blank" rel="noopener">aliceprotocol.org</a>`;
+    esc(t("subtitle", WINDOW_HOURS)) +
+    `<a class="text-cyan-400 hover:underline" href="https://aliceprotocol.org" target="_blank" rel="noopener">${esc(t("data_source"))}</a>`;
 
   const updatedStr = updatedAt
     ? new Date(updatedAt * 1000).toISOString().replace("T", " ").slice(0, 19) + " UTC"
     : "—";
   document.getElementById("footer").innerHTML =
-    `Data updated: ${updatedStr} · Page auto-refresh every 5 min · ` +
-    `<a class="text-cyan-400 hover:underline" href="${DATA_URL}">raw JSON</a>`;
+    esc(t("footer", updatedStr)) +
+    `<a class="text-cyan-400 hover:underline" href="${DATA_URL}">${esc(t("footer_raw"))}</a>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -510,10 +670,11 @@ async function load() {
     render(data);
   } catch (e) {
     document.getElementById("tbody").innerHTML =
-      `<tr><td colspan="3" class="p-6 text-center text-red-400">Failed to load data: ${esc(e.message)}</td></tr>`;
+      `<tr><td colspan="3" class="p-6 text-center text-red-400">${esc(t("load_failed", e.message))}</td></tr>`;
   }
 }
 
+applyStaticI18n();
 renderWatchUI();
 load();
 setInterval(load, AUTO_REFRESH_MS);
