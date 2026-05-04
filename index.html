@@ -78,6 +78,18 @@
     </div>
   </details>
 
+  <!-- Filter bar: window + top-N -->
+  <div class="bg-gray-800/60 rounded-lg p-3 mb-4 text-xs space-y-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-gray-400 font-semibold w-16 shrink-0" data-i18n="filter_window">Window:</span>
+      <div id="window-pills" class="flex flex-wrap gap-1"></div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-700">
+      <span class="text-gray-400 font-semibold w-16 shrink-0" data-i18n="filter_top">Top N:</span>
+      <div id="top-pills" class="flex flex-wrap gap-1"></div>
+    </div>
+  </div>
+
   <!-- Overview cards -->
   <div id="cards" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
 
@@ -96,19 +108,66 @@
   <div class="text-xs text-gray-600 mt-4 text-center" id="footer"></div>
 </div>
 
+<!-- Wallet detail modal (tx history + window stats) -->
+<div id="wallet-modal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-start justify-center p-3 overflow-y-auto">
+  <div class="bg-gray-900 rounded-lg border border-gray-700 max-w-4xl w-full my-4 shadow-2xl">
+    <div class="flex items-center justify-between p-4 border-b border-gray-700 gap-4">
+      <div class="flex-1 min-w-0">
+        <div id="modal-title" class="font-bold text-white"></div>
+        <div id="modal-subaddr" class="text-[11px] text-gray-500 font-mono truncate"></div>
+      </div>
+      <a id="modal-api-link" href="#" target="_blank" rel="noopener" class="text-xs text-cyan-400 hover:underline shrink-0" data-i18n="modal_api_link">raw JSON</a>
+      <button id="modal-close" class="text-gray-400 hover:text-white text-2xl leading-none shrink-0" aria-label="close">×</button>
+    </div>
+    <div id="modal-body" class="p-4"></div>
+  </div>
+</div>
+
 <script>
 // ---------------------------------------------------------------------------
 // Config (via URL params)
 // ---------------------------------------------------------------------------
 const params = new URLSearchParams(location.search);
-const WINDOW_HOURS = Math.max(1, Math.min(parseInt(params.get("hours") || "24"), 168));
-const topParam = params.get("top");
-const TOP_N = topParam === "all" ? Infinity : Math.max(1, Math.min(parseInt(topParam || "200"), 5000));
 const DATA_URL = "data/epochs.json";
 const LIVE_API_URL = "https://aliceprotocol.org/api/indexer/epochs?limit=50";
 const AUTO_REFRESH_MS = 60 * 1000;
 const STORAGE_KEY = "alice_monitor_watchlist";
 const LANG_KEY = "alice_monitor_lang";
+const WINDOW_KEY = "alice_monitor_window_hours";
+const TOP_KEY = "alice_monitor_top_n";
+const DEFAULT_WINDOW_HOURS = 24;
+const DEFAULT_TOP_N = 200;
+
+// Preset pills. Hour row / day row are separate for readability; Top-N row is a
+// distinct control. Adjust these arrays to change available options.
+const WINDOW_DAY_PRESETS = [1, 2, 3, 4, 5, 6, 7]; // days (converted to hours internally)
+const TOP_PRESETS = [100, 200, 500, "all"];
+
+function initWindowHours() {
+  const p = params.get("hours");
+  if (p !== null) {
+    const n = parseInt(p);
+    if (n >= 1 && n <= 168) return n;
+  }
+  const saved = parseInt(localStorage.getItem(WINDOW_KEY) || "");
+  if (saved >= 1 && saved <= 168) return saved;
+  return DEFAULT_WINDOW_HOURS;
+}
+function initTopN() {
+  const p = params.get("top");
+  if (p !== null) {
+    if (p === "all") return Infinity;
+    const n = parseInt(p);
+    if (n >= 1 && n <= 5000) return n;
+  }
+  const saved = localStorage.getItem(TOP_KEY);
+  if (saved === "all") return Infinity;
+  const n = parseInt(saved || "");
+  if (n >= 1 && n <= 5000) return n;
+  return DEFAULT_TOP_N;
+}
+let WINDOW_HOURS = initWindowHours();
+let TOP_N = initTopN();
 
 // ---------------------------------------------------------------------------
 // i18n
@@ -117,10 +176,10 @@ const I18N = {
   en: {
     app_title: "Alice Protocol Mining Monitor",
     loading: "Loading…",
-    subtitle: (h) => `Public read-only view · last ${h}h · data from `,
+    subtitle: (h) => `Public read-only view · last ${h / 24}d · data from `,
     data_source: "aliceprotocol.org",
     hero_title_prefix: "★ My Wallets · reward in last ",
-    hero_title_suffix: "h",
+    hero_title_suffix: "d",
     hero_hit: "Hit epochs",
     hero_rewarded: "Rewarded wallets",
     hero_share: "Share of pool",
@@ -136,11 +195,13 @@ const I18N = {
     watch_share: "Copy share link",
     watch_clear: "Clear all",
     watch_footnote: "Stored in localStorage · private to this browser",
+    filter_window: "Window",
+    filter_top: "Top N",
     watch_empty: "No wallets yet. Add one above — it stays on this browser only.",
     watch_remove: "remove",
     watch_no_label: "(no label)",
     card_epochs: "Epochs in window",
-    card_epochs_sub: (h) => `last ${h}h`,
+    card_epochs_sub: (h) => `last ${h / 24}d`,
     card_pool: "Pool Total",
     card_pool_sub: "ALICE distributed",
     card_rewarded: "Rewarded Wallets",
@@ -149,7 +210,7 @@ const I18N = {
     card_active_sub: "submitted shards",
     col_wallet: "Wallet",
     col_reward: "Reward",
-    col_reward_sub: (ep, h) => `${ep}ep · ${h}h`,
+    col_reward_sub: (ep, h) => `${ep}ep · ${h / 24}d`,
     col_shards: "Shards",
     foot_rewarded: "Rewarded / epoch",
     no_data: "No data.",
@@ -169,14 +230,47 @@ const I18N = {
     alert_empty_watch: "Watchlist is empty.",
     alert_copied: "Share link copied to clipboard.",
     prompt_copy: "Copy this URL:",
+    modal_title: "Transaction history",
+    modal_window_label: "Window",
+    modal_entries: "entries shown",
+    modal_truncated: "history may be truncated — fetched latest 500",
+    modal_reward_in: "Rewards in",
+    modal_transfer_in: "Transfer in",
+    modal_transfer_out: "Transfer out",
+    modal_net: "Net",
+    modal_count: (n) => `${n} tx`,
+    modal_col_time: "Time",
+    modal_col_type: "Type",
+    modal_col_counterparty: "Counterparty",
+    modal_col_amount: "Amount (ALICE)",
+    modal_no_tx: "No transactions in this window.",
+    modal_type_reward: "reward",
+    modal_type_in: "in",
+    modal_type_out: "out",
+    modal_type_self: "self",
+    modal_api_link: "raw JSON",
+    balance_free: "Balance (free)",
+    balance_reserved: "Reserved",
+    balance_frozen: "Frozen",
+    balance_staked: "Staked",
+    balance_lifetime: "Lifetime rewards",
+    balance_epochs: (n) => `${n} ep lifetime`,
+    balance_failed: (m) => `Balance unavailable: ${m}`,
+    balance_source: "source",
+    overview_window: "Window",
+    overview_daily: "Daily",
+    overview_daily_sub: (d) => `${d}d`,
+    daily_col_date: "Date",
+    daily_total: "Total",
+    detail_header: (d) => `Transactions · last ${d}d`,
   },
   zh: {
     app_title: "Alice Protocol 挖矿监控",
     loading: "加载中…",
-    subtitle: (h) => `公开只读视图 · 最近 ${h} 小时 · 数据来自 `,
+    subtitle: (h) => `公开只读视图 · 最近 ${h / 24} 天 · 数据来自 `,
     data_source: "aliceprotocol.org",
     hero_title_prefix: "★ 我的钱包 · 最近 ",
-    hero_title_suffix: " 小时奖励",
+    hero_title_suffix: " 天奖励",
     hero_hit: "命中纪元",
     hero_rewarded: "命中钱包",
     hero_share: "占奖池",
@@ -192,11 +286,13 @@ const I18N = {
     watch_share: "复制分享链接",
     watch_clear: "全部清空",
     watch_footnote: "保存在 localStorage · 仅限此浏览器可见",
+    filter_window: "窗口",
+    filter_top: "Top N",
     watch_empty: "还没有钱包。在上方添加一个——只会保存在这台浏览器。",
     watch_remove: "移除",
     watch_no_label: "（未命名）",
     card_epochs: "窗口纪元数",
-    card_epochs_sub: (h) => `最近 ${h} 小时`,
+    card_epochs_sub: (h) => `最近 ${h / 24} 天`,
     card_pool: "奖池总量",
     card_pool_sub: "已分发 ALICE",
     card_rewarded: "已获奖钱包",
@@ -205,7 +301,7 @@ const I18N = {
     card_active_sub: "提交过 shard",
     col_wallet: "钱包",
     col_reward: "奖励",
-    col_reward_sub: (ep, h) => `${ep} 纪元 · ${h}h`,
+    col_reward_sub: (ep, h) => `${ep} 纪元 · ${h / 24} 天`,
     col_shards: "Shards",
     foot_rewarded: "每纪元获奖数",
     no_data: "暂无数据。",
@@ -225,6 +321,39 @@ const I18N = {
     alert_empty_watch: "关注列表为空。",
     alert_copied: "分享链接已复制到剪贴板。",
     prompt_copy: "复制此链接：",
+    modal_title: "交易记录",
+    modal_window_label: "窗口",
+    modal_entries: "条",
+    modal_truncated: "历史可能被截断 — 仅拉取最近 500 条",
+    modal_reward_in: "挖矿奖励",
+    modal_transfer_in: "转入",
+    modal_transfer_out: "转出",
+    modal_net: "净额",
+    modal_count: (n) => `${n} 笔`,
+    modal_col_time: "时间",
+    modal_col_type: "类型",
+    modal_col_counterparty: "对方地址",
+    modal_col_amount: "金额 (ALICE)",
+    modal_no_tx: "窗口期内无交易。",
+    modal_type_reward: "奖励",
+    modal_type_in: "转入",
+    modal_type_out: "转出",
+    modal_type_self: "自转",
+    modal_api_link: "原始 JSON",
+    balance_free: "可用余额",
+    balance_reserved: "保留",
+    balance_frozen: "冻结",
+    balance_staked: "质押",
+    balance_lifetime: "累计奖励",
+    balance_epochs: (n) => `共 ${n} 纪元`,
+    balance_failed: (m) => `余额获取失败：${m}`,
+    balance_source: "来源",
+    overview_window: "窗口",
+    overview_daily: "每日",
+    overview_daily_sub: (d) => `${d} 天`,
+    daily_col_date: "日期",
+    daily_total: "合计",
+    detail_header: (d) => `交易明细 · 最近 ${d} 天`,
   },
 };
 
@@ -511,7 +640,7 @@ function render(data) {
   const hero = document.getElementById("hero");
   if (watchAddrs.size > 0) {
     hero.classList.remove("hidden");
-    document.getElementById("hero-hours").textContent = WINDOW_HOURS;
+    document.getElementById("hero-hours").textContent = WINDOW_HOURS / 24;
     document.getElementById("hero-reward").textContent = fmt2(myReward);
     document.getElementById("hero-hit").textContent = myHitEpochs;
     document.getElementById("hero-epochs").textContent = epochs.length;
@@ -609,7 +738,7 @@ function render(data) {
 
     const totalCls = isWatched ? "text-yellow-300 font-bold" : (total > 0 ? "text-green-400 font-bold" : "text-gray-500");
 
-    return `<tr class="border-b border-gray-800 hover:bg-gray-800/50 ${rowCls}">
+    return `<tr class="border-b border-gray-800 hover:bg-gray-800/50 cursor-pointer ${rowCls}" data-addr="${esc(addr)}" title="${esc(t("modal_title"))}">
       <td class="px-3 py-1 sticky left-0 bg-gray-900 z-10 whitespace-nowrap text-sm">
         <span class="text-gray-500 text-xs mr-2">#${i + 1}</span>
         ${nameHtml}
@@ -710,7 +839,451 @@ async function load() {
   render({ updated, epochs, _live: !!live });
 }
 
+// ---------------------------------------------------------------------------
+// Filter pills (window hours + top-N)
+// ---------------------------------------------------------------------------
+function pillClass(active) {
+  return "px-2.5 py-1 rounded border transition-colors " + (active
+    ? "bg-cyan-600 border-cyan-500 text-white font-semibold"
+    : "border-gray-700 text-gray-300 hover:bg-gray-700");
+}
+function makePill(label, dataAttr, dataVal, active) {
+  return `<button ${dataAttr}="${dataVal}" class="${pillClass(active)}">${label}</button>`;
+}
+function renderPills() {
+  const winEl = document.getElementById("window-pills");
+  winEl.innerHTML = WINDOW_DAY_PRESETS.map((d) =>
+    makePill(`${d}d`, "data-hours", d * 24, d * 24 === WINDOW_HOURS)
+  ).join("");
+  winEl.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => setWindow(parseInt(btn.dataset.hours)));
+  });
+
+  const topEl = document.getElementById("top-pills");
+  topEl.innerHTML = TOP_PRESETS.map((v) => {
+    const active = (v === "all" && TOP_N === Infinity) || v === TOP_N;
+    return makePill(String(v), "data-top", v, active);
+  }).join("");
+  topEl.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => setTopN(btn.dataset.top));
+  });
+}
+function updateUrl() {
+  const p = new URLSearchParams(location.search);
+  if (WINDOW_HOURS !== DEFAULT_WINDOW_HOURS) p.set("hours", String(WINDOW_HOURS));
+  else p.delete("hours");
+  if (TOP_N === Infinity) p.set("top", "all");
+  else if (TOP_N !== DEFAULT_TOP_N) p.set("top", String(TOP_N));
+  else p.delete("top");
+  const q = p.toString();
+  history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
+}
+function setWindow(h) {
+  if (!(h >= 1 && h <= 168) || h === WINDOW_HOURS) return;
+  WINDOW_HOURS = h;
+  localStorage.setItem(WINDOW_KEY, String(h));
+  updateUrl();
+  renderPills();
+  if (LAST_DATA) render(LAST_DATA);
+  refreshModalIfOpen();
+}
+function setTopN(v) {
+  const next = v === "all" ? Infinity : parseInt(v);
+  if (!(next === Infinity || (next >= 1 && next <= 5000)) || next === TOP_N) return;
+  TOP_N = next;
+  localStorage.setItem(TOP_KEY, v === "all" ? "all" : String(next));
+  updateUrl();
+  renderPills();
+  if (LAST_DATA) render(LAST_DATA);
+}
+
+// ---------------------------------------------------------------------------
+// Wallet detail modal: fetch tx history and summarize in/out for the window
+// ---------------------------------------------------------------------------
+const HISTORY_LIMIT = 500;
+const HISTORY_CACHE_TTL_MS = 60 * 1000;
+const PLANCK_PER_ALICE = 1e12;
+const DETAIL_HOURS = 168;                 // Detail tx table is fixed to last 7 days
+const DAILY_DAYS = 7;                     // Daily overview covers last 7 days
+const HISTORY_API = (addr, limit) =>
+  `https://aliceprotocol.org/api/indexer/accounts/${encodeURIComponent(addr)}/history?limit=${limit}`;
+const SUMMARY_API = (addr) =>
+  `https://aliceprotocol.org/api/indexer/accounts/${encodeURIComponent(addr)}/summary`;
+const historyCache = new Map(); // addr -> { fetchedAt, entries, rawLen }
+const summaryCache = new Map(); // addr -> { fetchedAt, data, error }
+let MODAL_ADDR = null;
+
+function txAmountAlice(e) {
+  // Rewards: amount is already a float in ALICE.
+  // Transfers: amount is a string in planck units (1 ALICE = 1e12 planck).
+  if (e.entry_type === "reward") return Number(e.amount) || 0;
+  if (e.entry_type === "transfer") return (parseFloat(e.amount) || 0) / PLANCK_PER_ALICE;
+  return 0;
+}
+
+async function fetchHistory(addr) {
+  const cached = historyCache.get(addr);
+  if (cached && Date.now() - cached.fetchedAt < HISTORY_CACHE_TTL_MS) return cached;
+  const res = await fetch(HISTORY_API(addr, HISTORY_LIMIT), { cache: "no-cache" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  const raw = Array.isArray(data.history) ? data.history : [];
+  // Drop bookkeeping "extrinsic" entries (duplicates of transfers, amount=null).
+  const entries = raw.filter((e) => e.entry_type !== "extrinsic");
+  const payload = { fetchedAt: Date.now(), entries, rawLen: raw.length };
+  historyCache.set(addr, payload);
+  return payload;
+}
+
+// /summary returns { balance:{free,reserved,frozen}, stake_summary:{staked_total,stakes}, reward_summary:{total_reward,epochs,...}, source }
+// Balance values are already in ALICE (floats), not planck.
+async function fetchSummary(addr) {
+  const cached = summaryCache.get(addr);
+  if (cached && Date.now() - cached.fetchedAt < HISTORY_CACHE_TTL_MS) return cached;
+  const res = await fetch(SUMMARY_API(addr), { cache: "no-cache" });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const data = await res.json();
+  const payload = { fetchedAt: Date.now(), data };
+  summaryCache.set(addr, payload);
+  return payload;
+}
+
+function summarizeHistory(addr, entries, rawLen, windowHours) {
+  const cutoffMs = Date.now() - windowHours * 3600 * 1000;
+  const inWindow = entries.filter((e) => (e.timestamp_ms || 0) >= cutoffMs);
+  let rewardIn = 0, xferIn = 0, xferOut = 0;
+  let rewardCount = 0, xferInCount = 0, xferOutCount = 0;
+  for (const e of inWindow) {
+    const amt = txAmountAlice(e);
+    if (e.entry_type === "reward" && e.to_address === addr) {
+      rewardIn += amt; rewardCount++;
+    } else if (e.entry_type === "transfer") {
+      if (e.from_address === addr && e.to_address !== addr) {
+        xferOut += amt; xferOutCount++;
+      } else if (e.to_address === addr && e.from_address !== addr) {
+        xferIn += amt; xferInCount++;
+      }
+    }
+  }
+  const oldest = entries[entries.length - 1];
+  // Truncation = we hit the API limit AND oldest known entry still falls inside
+  // the window, i.e. there may be entries we didn't fetch.
+  const mayBeTruncated = rawLen >= HISTORY_LIMIT && oldest && (oldest.timestamp_ms || 0) > cutoffMs;
+  return {
+    rows: inWindow,
+    rewardIn, xferIn, xferOut, net: rewardIn + xferIn - xferOut,
+    rewardCount, xferInCount, xferOutCount,
+    totalFetched: entries.length,
+    mayBeTruncated,
+  };
+}
+
+function counterparty(e, addr) {
+  if (e.entry_type === "reward") return null;
+  if (e.from_address === addr) return e.to_address;
+  if (e.to_address === addr) return e.from_address;
+  return null;
+}
+
+function typeBadge(e, addr) {
+  if (e.entry_type === "reward") {
+    return `<span class="px-1.5 py-0.5 rounded bg-green-900/60 text-green-300 text-[10px] whitespace-nowrap">★ ${esc(t("modal_type_reward"))}${e.epoch != null ? " #" + e.epoch : ""}</span>`;
+  }
+  if (e.entry_type === "transfer") {
+    if (e.from_address === addr && e.to_address !== addr)
+      return `<span class="px-1.5 py-0.5 rounded bg-red-900/60 text-red-300 text-[10px] whitespace-nowrap">↗ ${esc(t("modal_type_out"))}</span>`;
+    if (e.to_address === addr && e.from_address !== addr)
+      return `<span class="px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-300 text-[10px] whitespace-nowrap">↘ ${esc(t("modal_type_in"))}</span>`;
+    return `<span class="px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 text-[10px] whitespace-nowrap">${esc(t("modal_type_self"))}</span>`;
+  }
+  return `<span class="px-1.5 py-0.5 rounded bg-gray-700 text-gray-300 text-[10px] whitespace-nowrap">${esc(e.entry_type || "?")}</span>`;
+}
+
+function openWalletModal(addr) {
+  MODAL_ADDR = addr;
+  const modal = document.getElementById("wallet-modal");
+  const label = WATCH[addr] || "";
+  document.getElementById("modal-title").innerHTML =
+    (label ? `<span class="text-yellow-300">★ ${esc(label)}</span> <span class="text-gray-500">·</span> ` : "") +
+    `<span>${esc(t("modal_title"))}</span>`;
+  document.getElementById("modal-subaddr").textContent = addr;
+  document.getElementById("modal-api-link").href = HISTORY_API(addr, HISTORY_LIMIT);
+  document.getElementById("modal-body").innerHTML =
+    `<div class="text-gray-400 p-8 text-center">${esc(t("loading"))}</div>`;
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  // Fetch balance summary + tx history in parallel; render whatever succeeds.
+  Promise.allSettled([fetchSummary(addr), fetchHistory(addr)]).then(([sumRes, histRes]) => {
+    if (MODAL_ADDR !== addr) return;
+    const summary = sumRes.status === "fulfilled" ? sumRes.value.data : null;
+    const summaryErr = sumRes.status === "rejected" ? sumRes.reason : null;
+    const history = histRes.status === "fulfilled" ? histRes.value : null;
+    const historyErr = histRes.status === "rejected" ? histRes.reason : null;
+    renderWalletModalBody(addr, { summary, summaryErr, history, historyErr });
+  });
+}
+
+function closeWalletModal() {
+  MODAL_ADDR = null;
+  document.getElementById("wallet-modal").classList.add("hidden");
+  document.body.style.overflow = "";
+}
+
+function renderBalanceBanner(summary, err) {
+  if (err) {
+    return `<div class="bg-red-900/30 ring-1 ring-red-700/50 rounded p-3 mb-4 text-xs text-red-300">
+      ${esc(t("balance_failed", err.message || String(err)))}
+    </div>`;
+  }
+  if (!summary) {
+    return `<div class="bg-gray-800 rounded p-3 mb-4 text-xs text-gray-500 text-center">${esc(t("loading"))}</div>`;
+  }
+  const b = summary.balance || { free: 0, reserved: 0, frozen: 0 };
+  const ss = summary.stake_summary || { staked_total: 0, stakes: [] };
+  const rs = summary.reward_summary || { total_reward: 0, epochs: 0 };
+  const stakes = Array.isArray(ss.stakes) ? ss.stakes : [];
+  const stakesLabel = stakes.length
+    ? stakes.map((s) => (s && s.type) || "").filter(Boolean).join(" + ")
+    : "";
+  const srcBadge = summary.source
+    ? `<span class="text-[10px] text-gray-500 ml-2">${esc(t("balance_source"))}: ${esc(summary.source)}</span>`
+    : "";
+  return `<div class="bg-gradient-to-r from-slate-800 to-slate-900 ring-1 ring-slate-700 rounded-lg p-4 mb-4">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div>
+        <div class="text-[10px] text-gray-400 uppercase tracking-wide">${esc(t("balance_free"))}</div>
+        <div class="text-2xl font-bold text-white font-mono leading-tight">${fmt2(Number(b.free) || 0)}</div>
+        <div class="text-[10px] text-gray-500">ALICE${srcBadge}</div>
+      </div>
+      <div>
+        <div class="text-[10px] text-gray-400 uppercase tracking-wide">${esc(t("balance_reserved"))}</div>
+        <div class="text-lg font-mono text-gray-300">${fmt2(Number(b.reserved) || 0)}</div>
+      </div>
+      <div>
+        <div class="text-[10px] text-gray-400 uppercase tracking-wide">${esc(t("balance_frozen"))}</div>
+        <div class="text-lg font-mono text-gray-300">${fmt2(Number(b.frozen) || 0)}</div>
+      </div>
+      <div>
+        <div class="text-[10px] text-gray-400 uppercase tracking-wide">${esc(t("balance_staked"))}</div>
+        <div class="text-lg font-mono ${Number(ss.staked_total) > 0 ? "text-cyan-300" : "text-gray-500"}">${fmt2(Number(ss.staked_total) || 0)}</div>
+        ${stakesLabel ? `<div class="text-[10px] text-cyan-400">${esc(stakesLabel)}</div>` : ""}
+      </div>
+      <div>
+        <div class="text-[10px] text-gray-400 uppercase tracking-wide">${esc(t("balance_lifetime"))}</div>
+        <div class="text-lg font-mono text-green-400">${fmt2(Number(rs.total_reward) || 0)}</div>
+        <div class="text-[10px] text-gray-500">${esc(t("balance_epochs", Number(rs.epochs) || 0))}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Day key YYYY-MM-DD in UTC+08 (matches fmtTime display).
+function dayBucket(tsMs) {
+  const d = new Date(tsMs + 8 * 3600 * 1000);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function summarizeDaily(addr, entries, days) {
+  const now = Date.now();
+  const order = [];
+  const buckets = new Map();
+  // Pre-seed the last N days (today, yesterday, …) so empty days still render.
+  for (let i = 0; i < days; i++) {
+    const key = dayBucket(now - i * 86400000);
+    const b = { key, rewardIn: 0, xferIn: 0, xferOut: 0, rewardCount: 0, xferInCount: 0, xferOutCount: 0 };
+    buckets.set(key, b);
+    order.push(b);
+  }
+  const cutoffMs = now - days * 86400000;
+  for (const e of entries) {
+    const ts = e.timestamp_ms || 0;
+    if (ts < cutoffMs) continue;
+    const b = buckets.get(dayBucket(ts));
+    if (!b) continue;
+    const amt = txAmountAlice(e);
+    if (e.entry_type === "reward" && e.to_address === addr) {
+      b.rewardIn += amt; b.rewardCount++;
+    } else if (e.entry_type === "transfer") {
+      if (e.from_address === addr && e.to_address !== addr) {
+        b.xferOut += amt; b.xferOutCount++;
+      } else if (e.to_address === addr && e.from_address !== addr) {
+        b.xferIn += amt; b.xferInCount++;
+      }
+    }
+  }
+  return order; // already newest-first
+}
+
+function renderWindowOverview(addr, history) {
+  const s = summarizeHistory(addr, history.entries, history.rawLen, WINDOW_HOURS);
+  const statCard = (label, val, cls, sub) =>
+    `<div class="bg-gray-800 rounded p-3">
+      <div class="text-[11px] text-gray-400">${esc(label)}</div>
+      <div class="text-lg font-bold ${cls} font-mono">${val}</div>
+      ${sub ? `<div class="text-[10px] text-gray-500">${esc(sub)}</div>` : ""}
+    </div>`;
+  const signedNet = (s.net >= 0 ? "+" : "") + fmt2(s.net);
+  const stats = `
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+      ${statCard(t("modal_reward_in"), "+" + fmt2(s.rewardIn), "text-green-400", t("modal_count", s.rewardCount))}
+      ${statCard(t("modal_transfer_in"), "+" + fmt2(s.xferIn), "text-blue-400", t("modal_count", s.xferInCount))}
+      ${statCard(t("modal_transfer_out"), "-" + fmt2(s.xferOut), "text-red-400", t("modal_count", s.xferOutCount))}
+      ${statCard(t("modal_net"), signedNet, s.net >= 0 ? "text-green-400" : "text-red-400", "")}
+    </div>`;
+  const header = `
+    <div class="text-xs mb-2 flex-wrap gap-2">
+      <span class="text-gray-300 font-semibold">${esc(t("overview_window"))}</span>
+      <span class="text-cyan-300 font-semibold ml-2">${WINDOW_HOURS / 24}d</span>
+      <span class="text-gray-500 mx-1">·</span>
+      <span class="text-gray-400">${s.rows.length} ${esc(t("modal_entries"))}</span>
+    </div>`;
+  return header + stats;
+}
+
+function renderDailyOverview(addr, history) {
+  const days = summarizeDaily(addr, history.entries, DAILY_DAYS);
+  const header = `
+    <div class="text-xs mb-2 mt-4 flex-wrap gap-2">
+      <span class="text-gray-300 font-semibold">${esc(t("overview_daily"))}</span>
+      <span class="text-cyan-300 font-semibold ml-2">${esc(t("overview_daily_sub", DAILY_DAYS))}</span>
+    </div>`;
+  let tR = 0, tIn = 0, tOut = 0, cR = 0, cIn = 0, cOut = 0;
+  for (const d of days) {
+    tR += d.rewardIn; tIn += d.xferIn; tOut += d.xferOut;
+    cR += d.rewardCount; cIn += d.xferInCount; cOut += d.xferOutCount;
+  }
+  const tNet = tR + tIn - tOut;
+  const amtCell = (cls, val, cnt) => `
+    <td class="px-2 py-1 text-right">
+      <div class="font-mono text-sm ${cls}">${val}</div>
+      <div class="text-[10px] text-gray-500">${cnt ? esc(t("modal_count", cnt)) : "—"}</div>
+    </td>`;
+  const netCls = (n) => Math.abs(n) < 1e-9 ? "text-gray-500" : (n > 0 ? "text-green-400" : "text-red-400");
+  const rowsHtml = days.map((d) => {
+    const net = d.rewardIn + d.xferIn - d.xferOut;
+    const signed = (net >= 0 ? "+" : "") + fmt2(net);
+    return `<tr class="border-b border-gray-800">
+      <td class="px-2 py-1 text-xs text-gray-300 font-mono whitespace-nowrap">${esc(d.key)}</td>
+      ${amtCell("text-green-300", "+" + fmt2(d.rewardIn), d.rewardCount)}
+      ${amtCell("text-blue-300", "+" + fmt2(d.xferIn), d.xferInCount)}
+      ${amtCell("text-red-300", "-" + fmt2(d.xferOut), d.xferOutCount)}
+      <td class="px-2 py-1 text-right font-mono text-sm ${netCls(net)} whitespace-nowrap">${signed}</td>
+    </tr>`;
+  }).join("");
+  const signedTotal = (tNet >= 0 ? "+" : "") + fmt2(tNet);
+  return header + `<div class="rounded border border-gray-700 overflow-hidden mb-4">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-800">
+        <tr>
+          <th class="px-2 py-2 text-left text-[10px] text-gray-400 font-normal uppercase tracking-wide">${esc(t("daily_col_date"))}</th>
+          <th class="px-2 py-2 text-right text-[10px] text-gray-400 font-normal uppercase tracking-wide">${esc(t("modal_reward_in"))}</th>
+          <th class="px-2 py-2 text-right text-[10px] text-gray-400 font-normal uppercase tracking-wide">${esc(t("modal_transfer_in"))}</th>
+          <th class="px-2 py-2 text-right text-[10px] text-gray-400 font-normal uppercase tracking-wide">${esc(t("modal_transfer_out"))}</th>
+          <th class="px-2 py-2 text-right text-[10px] text-gray-400 font-normal uppercase tracking-wide">${esc(t("modal_net"))}</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+      <tfoot class="bg-gray-800/70 border-t-2 border-gray-600">
+        <tr>
+          <td class="px-2 py-2 text-xs font-bold text-gray-200">${esc(t("daily_total"))}</td>
+          ${amtCell("text-green-300 font-bold", "+" + fmt2(tR), cR)}
+          ${amtCell("text-blue-300 font-bold", "+" + fmt2(tIn), cIn)}
+          ${amtCell("text-red-300 font-bold", "-" + fmt2(tOut), cOut)}
+          <td class="px-2 py-2 text-right font-mono text-sm font-bold ${netCls(tNet)}">${signedTotal}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>`;
+}
+
+function renderDetailSection(addr, history) {
+  const s = summarizeHistory(addr, history.entries, history.rawLen, DETAIL_HOURS);
+  const header = `
+    <div class="flex items-center justify-between text-xs text-gray-400 mb-2 flex-wrap gap-2">
+      <div class="font-semibold text-gray-300">${esc(t("detail_header", DAILY_DAYS))} <span class="text-gray-500 font-normal">· ${s.rows.length} ${esc(t("modal_entries"))}</span></div>
+      ${s.mayBeTruncated ? `<div class="text-amber-400">${esc(t("modal_truncated"))}</div>` : ""}
+    </div>`;
+  if (s.rows.length === 0) {
+    return header + `<div class="p-6 text-center text-gray-500">${esc(t("modal_no_tx"))}</div>`;
+  }
+  const rowsHtml = s.rows.map((e) => {
+    const amt = txAmountAlice(e);
+    const tm = fmtTime(Math.floor((e.timestamp_ms || 0) / 1000));
+    const cp = counterparty(e, addr);
+    const cpCell = cp ? `<span title="${esc(cp)}">${esc(shortAddr(cp))}</span>` : "<span class=\"text-gray-600\">—</span>";
+    const isOut = e.entry_type === "transfer" && e.from_address === addr && e.to_address !== addr;
+    const signed = (isOut ? "-" : "+") + fmt2(amt);
+    const amtCls = isOut ? "text-red-300" : "text-green-300";
+    return `<tr class="border-b border-gray-800">
+      <td class="px-2 py-1 text-xs text-gray-400 font-mono whitespace-nowrap">${esc(tm.full)}</td>
+      <td class="px-2 py-1">${typeBadge(e, addr)}</td>
+      <td class="px-2 py-1 text-xs text-gray-400 font-mono">${cpCell}</td>
+      <td class="px-2 py-1 text-right font-mono text-sm ${amtCls} whitespace-nowrap">${signed}</td>
+    </tr>`;
+  }).join("");
+  return header + `
+    <div class="max-h-[50vh] overflow-y-auto rounded border border-gray-700">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-800 sticky top-0">
+          <tr>
+            <th class="px-2 py-2 text-left text-[11px] text-gray-400 font-normal">${esc(t("modal_col_time"))}</th>
+            <th class="px-2 py-2 text-left text-[11px] text-gray-400 font-normal">${esc(t("modal_col_type"))}</th>
+            <th class="px-2 py-2 text-left text-[11px] text-gray-400 font-normal">${esc(t("modal_col_counterparty"))}</th>
+            <th class="px-2 py-2 text-right text-[11px] text-gray-400 font-normal">${esc(t("modal_col_amount"))}</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderWalletModalBody(addr, payload) {
+  const banner = renderBalanceBanner(payload.summary, payload.summaryErr);
+  const body = document.getElementById("modal-body");
+  if (!payload.history) {
+    const errMsg = payload.historyErr ? t("load_failed", payload.historyErr.message) : t("loading");
+    body.innerHTML = banner + `<div class="text-gray-400 p-6 text-center text-xs">${esc(errMsg)}</div>`;
+    return;
+  }
+  const windowOv = renderWindowOverview(addr, payload.history);
+  const dailyOv = renderDailyOverview(addr, payload.history);
+  const detail = renderDetailSection(addr, payload.history);
+  body.innerHTML = banner + windowOv + dailyOv + detail;
+}
+
+function refreshModalIfOpen() {
+  if (!MODAL_ADDR) return;
+  const h = historyCache.get(MODAL_ADDR);
+  const s = summaryCache.get(MODAL_ADDR);
+  if (h || s) {
+    renderWalletModalBody(MODAL_ADDR, {
+      summary: s ? s.data : null,
+      summaryErr: null,
+      history: h || null,
+      historyErr: null,
+    });
+  }
+}
+
+// Row click delegation (tbody element is static; its innerHTML is replaced).
+document.getElementById("tbody").addEventListener("click", (e) => {
+  const tr = e.target.closest("tr[data-addr]");
+  if (tr) openWalletModal(tr.dataset.addr);
+});
+document.getElementById("modal-close").addEventListener("click", closeWalletModal);
+document.getElementById("wallet-modal").addEventListener("click", (e) => {
+  // Only close when the user clicks the dimmed backdrop, not the inner panel.
+  if (e.target.id === "wallet-modal") closeWalletModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && MODAL_ADDR) closeWalletModal();
+});
+
 applyStaticI18n();
+renderPills();
 renderWatchUI();
 load();
 setInterval(load, AUTO_REFRESH_MS);
